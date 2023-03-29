@@ -1,6 +1,5 @@
 /* eslint-disable */
 
-const Schema = require("./scheme-model");
 const db = require("../../data/db-config");
 
 /*
@@ -12,15 +11,20 @@ const db = require("../../data/db-config");
   }
 */
 async function checkSchemeId(req, res, next) {
-  const schemaId = await db("schema").where("id", req.params.id).first();
-  if (!schemaId) {
-    next({
-      status: 404,
-      message: `scheme with scheme_id ${req.params.id} not found`,
-    });
-  } else {
-    req.schema = schema;
-    next();
+  try {
+    const schemeId = await db("scheme")
+      .where("scheme_id", req.params.scheme_id)
+      .first();
+    if (!schemeId) {
+      next({
+        status: 404,
+        message: `scheme with scheme_id ${req.params.scheme_id} not found`,
+      });
+    } else {
+      next();
+    }
+  } catch (err) {
+    next(err);
   }
 }
 
@@ -34,9 +38,13 @@ async function checkSchemeId(req, res, next) {
 */
 
 const validateScheme = (req, res, next) => {
-  const { schema_name } = req.body;
-  if (!schema_name || schema_name.length < 0) {
-    next({ status: 400, message: "invalid schema_name" });
+  const { scheme_name } = req.body;
+  if (
+    scheme_name === undefined ||
+    typeof scheme_name !== "string" ||
+    !scheme_name.trim()
+  ) {
+    next({ status: 400, message: "invalid scheme_name" });
   } else {
     next();
   }
@@ -55,11 +63,9 @@ const validateScheme = (req, res, next) => {
 const validateStep = (req, res, next) => {
   const { instructions, step_number } = req.body;
   if (
-    !instructions ||
-    instructions.length < 0 ||
-    instructions.typeof !== "string" ||
-    step_number.typeof !== "number" ||
-    step_number < 1
+    instructions === undefined ||
+    typeof instructions !== "string" ||
+    typeof step_number !== "number"
   ) {
     next({ status: 400, message: "invalid step" });
   } else {

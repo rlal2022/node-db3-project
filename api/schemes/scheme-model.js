@@ -1,4 +1,6 @@
 /* eslint-disable */
+
+const db = require("../../data/db-config");
 async function find() {
   // EXERCISE A
   /*
@@ -18,13 +20,11 @@ async function find() {
     Return from this function the resulting dataset.
   */
 
-  const rows = await db("schemes as sc")
-    .leftJoin("steps as st", "sc.scheme_id", "=", "st.scheme_id")
+  return await db("schemes as sc")
+    .leftJoin("steps as st", "sc.scheme_id", "st.scheme_id")
+    .select("sc.*")
     .count("st.step_id as number_of_steps")
-    .groupBy("sc.scheme_id")
-    .orderBy("sc.scheme_id", "ASC");
-  console.log(rows);
-  return rows;
+    .groupBy("sc.scheme_id");
 }
 
 async function findById(scheme_id) {
@@ -96,15 +96,29 @@ async function findById(scheme_id) {
   */
 
   const rows = await db("schemes as sc")
-    .leftJoin("steps as st", "sc.scheme_id", "=", "st.scheme_id")
-    .where("sc.scheme_id", "=", "scheme_id")
-    .count("st.step_id as number_of_steps")
-    .orderBy("st.step_number", "ASC");
-  console.log(rows);
-  return rows;
+    .leftJoin("steps as st", "sc.scheme_id", "st.scheme_id")
+    .where("sc.scheme_id", scheme_id)
+    .select("st.*", "sc.scheme_name", "sc.scheme_id")
+    .orderBy("st.step_number");
+
+  const result = {
+    scheme_id: rows[0].scheme_id,
+    scheme_name: rows[0].scheme_name,
+    steps: [],
+  };
+
+  rows.forEach((row) => {
+    if (row.step_id) {
+      result.steps.push({
+        step_id: row.step_id,
+        step_number: row.step_number,
+        instructions: row.instructions,
+      });
+    }
+  });
 }
 
-function findSteps(scheme_id) {
+async function findSteps(scheme_id) {
   // EXERCISE C
   /*
     1C- Build a query in Knex that returns the following data.
@@ -126,6 +140,15 @@ function findSteps(scheme_id) {
         }
       ]
   */
+
+  const rows = await db("scheme as sc")
+    .leftJoin("steps as st", "sc.scheme_id", "st.scheme_id")
+    .select("st.step_id", "st.step_number", "instructions", "sc.scheme_name")
+    .where("sc.scheme_id", scheme_id)
+    .orderBy("step_number");
+
+  if (!rows[0].step_id) return [];
+  return rows;
 }
 
 function add(scheme) {
@@ -137,7 +160,7 @@ function add(scheme) {
   return db("scheme")
     .insert(scheme)
     .then(([id]) => {
-      return findById(id);
+      return db("schemes").where("scheme_id", id).first();
     });
 }
 
@@ -149,7 +172,18 @@ function addStep(scheme_id, step) {
     including the newly created one.
   */
 
-  return db("scheme");
+  return db("steps")
+    .insert({
+      ...step,
+      scheme_id,
+    })
+    .then(() => {
+      return db("steps as st")
+        .join("schemes as sc", "sc.scheme_id", "st.scheme_id")
+        .select("step_id", "step_number", "instructions", "scheme_name")
+        .orderBy("step_number")
+        .where("scheme_id", scheme_id);
+    });
 }
 
 module.exports = {
