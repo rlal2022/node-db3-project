@@ -65,7 +65,8 @@ const validateStep = (req, res, next) => {
   if (
     instructions === undefined ||
     typeof instructions !== "string" ||
-    typeof step_number !== "number"
+    typeof step_number !== "number" ||
+    step_number < 1
   ) {
     next({ status: 400, message: "invalid step" });
   } else {
